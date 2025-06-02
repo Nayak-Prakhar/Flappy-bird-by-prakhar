@@ -1,19 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Flappy Ball</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <h1>Flappy Ball</h1>
-  <canvas id="gameCanvas" width="300" height="500"></canvas>
-  <p>Score: <span id="score">0</span></p>
-  <h2>Leaderboard</h2>
-  <ul id="leaderboard"></ul>
+  <div class="container" id="authContainer">
+    <h2>Flappy Ball Login</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+  </div>
+
+  <div class="container hidden" id="gameContainer">
+    <h2>Welcome, <span id="playerName"></span></h2>
+    <canvas id="gameCanvas" width="300" height="500"></canvas>
+    <p>Score: <span id="score">0</span></p>
+    <button id="startBtn" onclick="startGame()">Start Game</button>
+    <h3>Leaderboard</h3>
+    <ul id="leaderboard"></ul>
+    <button onclick="logout()">Logout</button>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
