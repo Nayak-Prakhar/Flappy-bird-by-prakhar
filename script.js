@@ -12,10 +12,15 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Auth Logic
+// DOM
 const authContainer = document.getElementById("authContainer");
 const gameContainer = document.getElementById("gameContainer");
 const playerNameSpan = document.getElementById("playerName");
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreDisplay = document.getElementById("score");
+const startBtn = document.getElementById("startBtn");
+const leaderboard = document.getElementById("leaderboard");
 
 auth.onAuthStateChanged(user => {
   if (user) {
@@ -46,12 +51,7 @@ function logout() {
 }
 
 // Game Logic
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const scoreDisplay = document.getElementById("score");
-const startBtn = document.getElementById("startBtn");
-
-let birdY = 250, birdV = 0, gravity = 0.5, score = 0;
+let birdY = 250, birdV = 0, gravity = 0.3, score = 0;
 let pipes = [];
 let gameLoop;
 let running = false;
@@ -61,18 +61,33 @@ function startGame() {
   birdV = 0;
   score = 0;
   pipes = [{ x: 300, y: Math.random() * 200 + 100 }];
-  running = true;
-  gameLoop = requestAnimationFrame(draw);
+  running = false;
   startBtn.disabled = true;
+  scoreDisplay.innerText = "0";
+
+  let count = 3;
+  startBtn.innerText = `Starting in ${count}...`;
+
+  const countdown = setInterval(() => {
+    count--;
+    if (count > 0) {
+      startBtn.innerText = `Starting in ${count}...`;
+    } else {
+      clearInterval(countdown);
+      startBtn.innerText = "Start Game";
+      running = true;
+      gameLoop = requestAnimationFrame(draw);
+    }
+  }, 1000);
 }
 
 document.addEventListener("touchstart", () => {
-  if (running) birdV = -7;
+  if (running) birdV = -6;
 });
 
 document.addEventListener("keydown", e => {
   if (e.key === " " || e.key === "ArrowUp") {
-    if (running) birdV = -7;
+    if (running) birdV = -6;
   }
 });
 
@@ -91,34 +106,35 @@ function draw() {
   // Draw Pipes
   for (let pipe of pipes) {
     pipe.x -= 2;
+
     if (pipe.x + 40 < 0) {
       pipe.x = 300;
       pipe.y = Math.random() * 200 + 100;
       score++;
     }
 
-    ctx.fillStyle = "#2e7d32";
-    ctx.fillRect(pipe.x, 0, 40, pipe.y - 60);
-    ctx.fillRect(pipe.x, pipe.y + 60, 40, 500 - pipe.y);
+    const gap = 100; // increased gap
 
-    // Collision
+    ctx.fillStyle = "#2e7d32";
+    ctx.fillRect(pipe.x, 0, 40, pipe.y - gap / 2);
+    ctx.fillRect(pipe.x, pipe.y + gap / 2, 40, 500 - pipe.y);
+
     if (
       pipe.x < 70 &&
       pipe.x + 40 > 50 &&
-      (birdY < pipe.y - 60 || birdY > pipe.y + 60)
+      (birdY < pipe.y - gap / 2 || birdY > pipe.y + gap / 2)
     ) {
       endGame();
       return;
     }
   }
 
-  // Floor or Ceiling Collision
   if (birdY > 500 || birdY < 0) {
     endGame();
     return;
   }
 
-  scoreDisplay.textContent = score;
+  scoreDisplay.innerText = score;
   gameLoop = requestAnimationFrame(draw);
 }
 
@@ -146,13 +162,12 @@ function loadLeaderboard() {
     .limit(5)
     .get()
     .then(snapshot => {
-      const list = document.getElementById("leaderboard");
-      list.innerHTML = "";
+      leaderboard.innerHTML = "";
       snapshot.forEach(doc => {
         const data = doc.data();
         const li = document.createElement("li");
         li.innerText = `${data.email}: ${data.score}`;
-        list.appendChild(li);
+        leaderboard.appendChild(li);
       });
     });
 }
