@@ -1,4 +1,3 @@
-// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyBp8i4NxEN4nkymuKz4VEmJed7j7MmC8ZM",
   authDomain: "floppy-bird-d3441.firebaseapp.com",
@@ -13,82 +12,131 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-let user;
-auth.signInAnonymously().then(cred => {
-  user = cred.user.uid;
+// Auth Logic
+const authContainer = document.getElementById("authContainer");
+const gameContainer = document.getElementById("gameContainer");
+const playerNameSpan = document.getElementById("playerName");
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    authContainer.classList.add("hidden");
+    gameContainer.classList.remove("hidden");
+    playerNameSpan.innerText = user.email;
+    loadLeaderboard();
+  } else {
+    authContainer.classList.remove("hidden");
+    gameContainer.classList.add("hidden");
+  }
 });
 
+function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  auth.signInWithEmailAndPassword(email, password).catch(alert);
+}
+
+function register() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  auth.createUserWithEmailAndPassword(email, password).catch(alert);
+}
+
+function logout() {
+  auth.signOut();
+}
+
+// Game Logic
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const scoreDisplay = document.getElementById("score");
+const startBtn = document.getElementById("startBtn");
 
 let birdY = 250, birdV = 0, gravity = 0.5, score = 0;
-let pipes = [{ x: 300, y: Math.random() * 200 + 100 }];
-let gameOver = false;
+let pipes = [];
+let gameLoop;
+let running = false;
 
-document.addEventListener("touchstart", flap);
-document.addEventListener("keydown", e => {
-  if (e.key === " " || e.key === "ArrowUp") flap();
-});
-
-function flap() {
-  birdV = -7;
+function startGame() {
+  birdY = 250;
+  birdV = 0;
+  score = 0;
+  pipes = [{ x: 300, y: Math.random() * 200 + 100 }];
+  running = true;
+  gameLoop = requestAnimationFrame(draw);
+  startBtn.disabled = true;
 }
 
-function draw() {
-  if (gameOver) return;
+document.addEventListener("touchstart", () => {
+  if (running) birdV = -7;
+});
 
+document.addEventListener("keydown", e => {
+  if (e.key === " " || e.key === "ArrowUp") {
+    if (running) birdV = -7;
+  }
+});
+
+function draw() {
   ctx.clearRect(0, 0, 300, 500);
 
-  // Bird
   birdV += gravity;
   birdY += birdV;
-  ctx.fillStyle = "red";
+
+  // Draw Bird
+  ctx.fillStyle = "#e53935";
   ctx.beginPath();
   ctx.arc(60, birdY, 10, 0, Math.PI * 2);
   ctx.fill();
 
-  // Pipes
+  // Draw Pipes
   for (let pipe of pipes) {
     pipe.x -= 2;
-
     if (pipe.x + 40 < 0) {
       pipe.x = 300;
       pipe.y = Math.random() * 200 + 100;
       score++;
     }
 
-    ctx.fillStyle = "green";
+    ctx.fillStyle = "#2e7d32";
     ctx.fillRect(pipe.x, 0, 40, pipe.y - 60);
     ctx.fillRect(pipe.x, pipe.y + 60, 40, 500 - pipe.y);
 
+    // Collision
     if (
       pipe.x < 70 &&
       pipe.x + 40 > 50 &&
       (birdY < pipe.y - 60 || birdY > pipe.y + 60)
     ) {
       endGame();
+      return;
     }
   }
 
+  // Floor or Ceiling Collision
   if (birdY > 500 || birdY < 0) {
     endGame();
+    return;
   }
 
   scoreDisplay.textContent = score;
-  requestAnimationFrame(draw);
+  gameLoop = requestAnimationFrame(draw);
 }
 
 function endGame() {
-  gameOver = true;
-  saveScore();
+  cancelAnimationFrame(gameLoop);
+  running = false;
+  startBtn.disabled = false;
+  saveScore(score);
 }
 
-function saveScore() {
+function saveScore(score) {
+  const user = auth.currentUser;
+  if (!user) return;
+
   db.collection("flappyScores").add({
-    uid: user,
+    email: user.email,
     score: score,
-    created: Date.now()
+    timestamp: Date.now()
   }).then(loadLeaderboard);
 }
 
@@ -103,10 +151,8 @@ function loadLeaderboard() {
       snapshot.forEach(doc => {
         const data = doc.data();
         const li = document.createElement("li");
-        li.innerText = `Score: ${data.score}`;
+        li.innerText = `${data.email}: ${data.score}`;
         list.appendChild(li);
       });
     });
 }
-
-draw();
