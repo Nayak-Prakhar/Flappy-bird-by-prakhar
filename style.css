@@ -1,0 +1,19 @@
+body {
+  font-family: sans-serif;
+  background: #222;
+  color: white;
+  text-align: center;
+  margin: 0;
+}
+
+canvas {
+  background: skyblue;
+  display: block;
+  margin: auto;
+  border: 3px solid white;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
