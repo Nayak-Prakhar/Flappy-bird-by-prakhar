@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Flappy Bird</title>
-    <script type="module">
-        // Import Firebase v9+ modules
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
-        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js';
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <style>
         * {
             margin: 0;
@@ -110,6 +107,8 @@
             align-items: center;
             width: 100%;
             max-width: 400px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         #gameCanvas {
@@ -149,10 +148,11 @@
         }
         
         #leaderboard li {
-            padding: 5px;
+            padding: 8px;
             background: #f5f5f5;
-            margin: 3px 0;
+            margin: 5px 0;
             border-radius: 5px;
+            text-align: left;
         }
         
         .instructions {
@@ -166,19 +166,34 @@
             color: #333;
         }
         
+        .demo-info {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
         @media (max-width: 480px) {
             .game-header {
                 font-size: 14px;
                 padding: 10px;
+                flex-direction: column;
             }
             
             #gameCanvas {
                 height: 500px;
+                max-height: 60vh;
             }
             
             button {
                 padding: 15px 25px;
-                font-size: 18px;
+                font-size: 16px;
+            }
+            
+            h1 {
+                font-size: 2em;
             }
         }
     </style>
@@ -187,15 +202,15 @@
     <div class="container">
         <div id="authContainer">
             <h1>🐦 Flappy Bird</h1>
-            <form id="authForm" onsubmit="handleSubmit(event)">
+            <form id="authForm" onsubmit="return false;">
                 <input type="email" id="email" placeholder="Email" required>
                 <input type="password" id="password" placeholder="Password (min 6 chars)" required minlength="6">
                 <div>
                     <button type="button" onclick="login()">Login</button>
                     <button type="button" onclick="register()">Register</button>
                 </div>
-                <div style="margin-top: 15px; font-size: 12px; color: #666;">
-                    <p>Demo: Use any email format (test@example.com) and password (minimum 6 characters)</p>
+                <div class="demo-info">
+                    <p><strong>Demo Mode:</strong> Use any email format (e.g., test@example.com) and password (6+ characters)</p>
                 </div>
             </form>
         </div>
@@ -214,7 +229,7 @@
             </div>
             
             <div class="instructions">
-                <strong>Instructions:</strong> Tap anywhere on screen or press SPACE to flap. Avoid the pipes!
+                <strong>Instructions:</strong> Click on canvas, tap screen, or press SPACE/UP arrow to flap wings. Avoid the pipes!
             </div>
             
             <div id="leaderboard">
@@ -235,6 +250,7 @@
             measurementId: "G-VXNT14PN5Y"
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
@@ -249,9 +265,9 @@
         const startBtn = document.getElementById("startBtn");
         const leaderboard = document.getElementById("leaderboard").querySelector("ul");
 
-        // Authentication with better error handling
+        // Authentication State Management
         auth.onAuthStateChanged(user => {
-            console.log("Auth state changed:", user ? "User logged in" : "User logged out");
+            console.log("Auth state changed:", user ? `User: ${user.email}` : "No user");
             if (user) {
                 authContainer.classList.add("hidden");
                 gameContainer.classList.remove("hidden");
@@ -263,12 +279,7 @@
             }
         });
 
-        // Handle form submission
-        function handleSubmit(event) {
-            event.preventDefault();
-            return false;
-        }
-
+        // Authentication Functions
         function login() {
             const email = document.getElementById("email").value.trim();
             const password = document.getElementById("password").value;
@@ -278,7 +289,6 @@
                 return;
             }
             
-            // Show loading state
             const loginBtn = event.target;
             loginBtn.disabled = true;
             loginBtn.textContent = "Logging in...";
@@ -289,7 +299,24 @@
                 })
                 .catch(err => {
                     console.error("Login error:", err);
-                    alert(`Login failed: ${err.message}`);
+                    let errorMessage = "Login failed: ";
+                    switch(err.code) {
+                        case 'auth/user-not-found':
+                            errorMessage += "No account found with this email. Please register first.";
+                            break;
+                        case 'auth/wrong-password':
+                            errorMessage += "Incorrect password.";
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage += "Invalid email format.";
+                            break;
+                        case 'auth/too-many-requests':
+                            errorMessage += "Too many failed attempts. Please try again later.";
+                            break;
+                        default:
+                            errorMessage += err.message;
+                    }
+                    alert(errorMessage);
                 })
                 .finally(() => {
                     loginBtn.disabled = false;
@@ -311,7 +338,6 @@
                 return;
             }
             
-            // Show loading state
             const registerBtn = event.target;
             registerBtn.disabled = true;
             registerBtn.textContent = "Registering...";
@@ -319,11 +345,25 @@
             auth.createUserWithEmailAndPassword(email, password)
                 .then(() => {
                     console.log("Registration successful");
-                    alert("Account created successfully!");
+                    alert("Account created successfully! You are now logged in.");
                 })
                 .catch(err => {
                     console.error("Registration error:", err);
-                    alert(`Registration failed: ${err.message}`);
+                    let errorMessage = "Registration failed: ";
+                    switch(err.code) {
+                        case 'auth/email-already-in-use':
+                            errorMessage += "An account with this email already exists. Try logging in instead.";
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage += "Invalid email format.";
+                            break;
+                        case 'auth/weak-password':
+                            errorMessage += "Password is too weak. Use at least 6 characters.";
+                            break;
+                        default:
+                            errorMessage += err.message;
+                    }
+                    alert(errorMessage);
                 })
                 .finally(() => {
                     registerBtn.disabled = false;
@@ -332,47 +372,91 @@
         }
 
         function logout() {
-            auth.signOut();
+            auth.signOut().then(() => {
+                console.log("Logout successful");
+            }).catch(err => {
+                console.error("Logout error:", err);
+                alert("Error logging out: " + err.message);
+            });
         }
 
-        // Game Variables (Improved for better gameplay)
+        // Game Variables (Fixed and Improved)
         let birdY = 300;
         let birdV = 0;
-        let gravity = 0.4;
-        let jumpStrength = -7;
+        let gravity = 0.5;
+        let jumpStrength = -8;
         let score = 0;
         let pipes = [];
         let gameLoop;
         let running = false;
         let gameStarted = false;
-        let pipeSpeed = 1.5; // Slower pipe movement
-        let pipeGap = 150; // Larger gap for easier gameplay
+        let pipeSpeed = 2;
+        let pipeGap = 120;
         let pipeWidth = 50;
-        let pipeSpacing = 250; // Distance between pipes
-        let lastTime = 0;
+        let pipeSpacing = 200;
 
+        function startGame() {
+            // Reset game state
+            birdY = 300;
+            birdV = 0;
+            score = 0;
+            pipes = [];
+            running = false;
+            gameStarted = false;
+            startBtn.disabled = true;
+            scoreDisplay.innerText = "0";
 
+            // Create initial pipe
+            pipes.push({ 
+                x: canvas.width + 50, 
+                y: Math.random() * 250 + 150,
+                scored: false 
+            });
+
+            let count = 3;
+            startBtn.innerText = `Starting in ${count}...`;
+
+            const countdown = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    startBtn.innerText = `Starting in ${count}...`;
+                } else {
+                    clearInterval(countdown);
+                    startBtn.innerText = "Start Game";
+                    running = true;
+                    gameStarted = true;
+                    gameLoop = requestAnimationFrame(draw);
+                }
             }, 1000);
         }
 
-        // Touch and keyboard controls
-        canvas.addEventListener("touchstart", (e) => {
+        // Input Controls (Fixed)
+        canvas.addEventListener("click", (e) => {
             e.preventDefault();
-            if (running) birdV = jumpStrength;
+            if (running && gameStarted) {
+                birdV = jumpStrength;
+            }
         });
 
-        canvas.addEventListener("click", () => {
-            if (running) birdV = jumpStrength;
+        canvas.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            if (running && gameStarted) {
+                birdV = jumpStrength;
+            }
         });
 
         document.addEventListener("keydown", e => {
             if (e.key === " " || e.key === "ArrowUp") {
                 e.preventDefault();
-                if (running) birdV = jumpStrength;
+                if (running && gameStarted) {
+                    birdV = jumpStrength;
+                }
             }
         });
 
         function draw() {
+            if (!running) return;
+
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -380,7 +464,7 @@
             birdV += gravity;
             birdY += birdV;
 
-            // Draw bird with better graphics
+            // Draw bird
             ctx.fillStyle = "#FFD700";
             ctx.strokeStyle = "#FF8C00";
             ctx.lineWidth = 2;
@@ -400,22 +484,22 @@
                 let pipe = pipes[i];
                 pipe.x -= pipeSpeed;
 
-                // Remove pipes that are off screen and add score
+                // Remove off-screen pipes
                 if (pipe.x + pipeWidth < 0) {
                     pipes.splice(i, 1);
                     continue;
                 }
 
-                // Add new pipe when previous pipe is far enough
-                if (pipe.x < canvas.width - pipeSpacing && pipes.length === 1) {
+                // Add new pipe when needed
+                if (pipes.length === 1 && pipe.x < canvas.width - pipeSpacing) {
                     pipes.push({ 
                         x: canvas.width, 
-                        y: Math.random() * 200 + 150,
+                        y: Math.random() * 250 + 150,
                         scored: false 
                     });
                 }
 
-                // Draw pipes with better graphics
+                // Draw pipes
                 const topHeight = pipe.y - pipeGap / 2;
                 const bottomY = pipe.y + pipeGap / 2;
                 const bottomHeight = canvas.height - bottomY;
@@ -431,47 +515,41 @@
                 ctx.fillRect(pipe.x, bottomY, pipeWidth, bottomHeight);
                 ctx.strokeRect(pipe.x, bottomY, pipeWidth, bottomHeight);
 
-                // Check for scoring (bird passes pipe)
+                // Scoring (Fixed)
                 if (!pipe.scored && pipe.x + pipeWidth < 80) {
                     score++;
                     pipe.scored = true;
                     scoreDisplay.innerText = score;
                 }
 
-                // Collision detection
+                // Collision detection (Fixed)
                 if (pipe.x < 95 && pipe.x + pipeWidth > 65) {
-                    if (birdY - 15 < topHeight || birdY + 15 > bottomY) {
+                    if (birdY - 15 <= topHeight || birdY + 15 >= bottomY) {
                         endGame();
                         return;
                     }
                 }
             }
 
-            // Check for ground/ceiling collision
-            if (birdY > canvas.height - 15 || birdY < 15) {
+            // Ground/ceiling collision
+            if (birdY >= canvas.height - 15 || birdY <= 15) {
                 endGame();
                 return;
-            }
-
-            // Add more pipes as needed
-            if (pipes.length === 0) {
-                pipes.push({ 
-                    x: canvas.width, 
-                    y: Math.random() * 200 + 150,
-                    scored: false 
-                });
             }
 
             gameLoop = requestAnimationFrame(draw);
         }
 
         function endGame() {
+            if (!running) return; // Prevent multiple calls
+            
             cancelAnimationFrame(gameLoop);
             running = false;
+            gameStarted = false;
             startBtn.disabled = false;
             startBtn.innerText = "Play Again";
             
-            // Show game over message
+            // Game over overlay
             ctx.fillStyle = "rgba(0,0,0,0.7)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
@@ -484,64 +562,44 @@
             ctx.fillText(`Final Score: ${score}`, canvas.width/2, canvas.height/2);
             
             ctx.font = "16px Arial";
-            ctx.fillText("Tap 'Play Again' to restart", canvas.width/2, canvas.height/2 + 40);
+            ctx.fillText("Click 'Play Again' to restart", canvas.width/2, canvas.height/2 + 40);
             
             saveScore(score);
         }
 
         function saveScore(score) {
             const user = auth.currentUser;
-            if (!user) return;
+            if (!user) {
+                console.log("No user logged in, cannot save score");
+                return;
+            }
 
+            console.log(`Saving score: ${score} for user: ${user.email}`);
+            
             db.collection("flappyScores").add({
                 email: user.email,
                 score: score,
                 timestamp: Date.now()
-            }).then(loadLeaderboard);
+            }).then(() => {
+                console.log("Score saved successfully");
+                loadLeaderboard();
+            }).catch(err => {
+                console.error("Error saving score:", err);
+                alert("Error saving score: " + err.message);
+            });
         }
 
         function loadLeaderboard() {
+            console.log("Loading leaderboard...");
+            
             db.collection("flappyScores")
                 .orderBy("score", "desc")
                 .limit(5)
                 .get()
                 .then(snapshot => {
                     leaderboard.innerHTML = "";
+                    
                     if (snapshot.empty) {
                         const li = document.createElement("li");
-                        li.innerText = "No scores yet. Be the first!";
-                        leaderboard.appendChild(li);
-                        return;
-                    }
-                    
-                    snapshot.forEach((doc, index) => {
-                        const data = doc.data();
-                        const li = document.createElement("li");
-                        const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
-                        li.innerText = `${medal} ${data.email}: ${data.score}`;
-                        leaderboard.appendChild(li);
-                    });
-                })
-                .catch(err => {
-                    console.error("Error loading leaderboard:", err);
-                    leaderboard.innerHTML = "<li>Error loading scores</li>";
-                });
-        }
-
-        // Initialize Firebase connection test
-        firebase.auth().onAuthStateChanged(() => {
-            console.log("Firebase initialized successfully");
-        });
-
-        // Prevent zoom on double tap
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', function (event) {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                event.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
-    </script>
-</body>
-</html>
+                        li.innerText = "No scores yet. Be the first to play!";
+                        li.style.textAlign = 
