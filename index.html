@@ -2,32 +2,525 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Flappy Ball</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Flappy Bird</title>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+  <style>
+    /* Reset & Global */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #87CEEB, #98FB98);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      color: #333;
+    }
+    .hidden {
+      display: none !important;
+    }
+
+    /* Auth Container */
+    #authContainer {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      max-width: 350px;
+      width: 90%;
+      text-align: center;
+    }
+    #authContainer h2 {
+      margin-bottom: 20px;
+      color: #2e7d32;
+      font-size: 1.8em;
+    }
+    #authContainer input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    #authContainer input:focus {
+      outline: none;
+      border-color: #2e7d32;
+    }
+    #authContainer button {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      margin: 5px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+    }
+    #authContainer button:hover {
+      background: #1b5e20;
+    }
+    #authContainer button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* Game Container */
+    #gameContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 400px;
+      height: 100vh;
+      padding: 10px;
+    }
+    .game-header {
+      background: rgba(255,255,255,0.9);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+    #gameContainer>h2 {
+      margin-bottom: 15px;
+      color: #2e7d32;
+    }
+    #gameCanvas {
+      border: 3px solid #2e7d32;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+      display: block;
+      width: 100%;
+      max-width: 400px;
+      height: 600px;
+      max-height: 70vh;
+      margin: 0 auto;
+    }
+    .game-controls {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .game-controls button {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+    }
+    .game-controls button:hover {
+      background: #1b5e20;
+    }
+    .game-controls button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .instructions {
+      background: rgba(255,255,255,0.9);
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 10px;
+      width: 100%;
+      max-width: 400px;
+      font-size: 14px;
+      color: #333;
+    }
+    #leaderboard {
+      background: rgba(255,255,255,0.9);
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 15px;
+      width: 100%;
+      max-width: 400px;
+    }
+    #leaderboard h3 {
+      color: #2e7d32;
+      margin-bottom: 10px;
+    }
+    #leaderboard ul {
+      list-style: none;
+      padding: 0;
+    }
+    #leaderboard li {
+      padding: 5px;
+      background: #f5f5f5;
+      margin: 3px 0;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    @media (max-width: 480px) {
+      .game-header {
+        font-size: 14px;
+        padding: 10px;
+      }
+      #gameCanvas {
+        height: 500px;
+      }
+      button {
+        padding: 15px 25px;
+        font-size: 18px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div class="container" id="authContainer">
-    <h2>Flappy Ball Login</h2>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="login()">Login</button>
-    <button onclick="register()">Register</button>
+  <!-- Authentication Screen -->
+  <div id="authContainer">
+    <h2>🐦 Flappy Bird Login</h2>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <div>
+      <button onclick="login()">Login</button>
+      <button onclick="register()">Register</button>
+    </div>
   </div>
 
-  <div class="container hidden" id="gameContainer">
-    <h2>Welcome, <span id="playerName"></span></h2>
-    <canvas id="gameCanvas" width="300" height="500"></canvas>
-    <p>Score: <span id="score">0</span></p>
-    <button id="startBtn" onclick="startGame()">Start Game</button>
-    <h3>Leaderboard</h3>
-    <ul id="leaderboard"></ul>
-    <button onclick="logout()">Logout</button>
+  <!-- Game Screen -->
+  <div id="gameContainer" class="hidden">
+    <div class="game-header">
+      <span>Player: <span id="playerName"></span></span>
+      <span>Score: <span id="score">0</span></span>
+      <button onclick="logout()">Logout</button>
+    </div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <div class="game-controls">
+      <button id="startBtn" onclick="startGame()">Start Game</button>
+    </div>
+
+    <div class="instructions">
+      <strong>Instructions:</strong> Tap anywhere on screen or press SPACE to flap. Avoid the pipes!
+    </div>
+
+    <div id="leaderboard">
+      <h3>🏆 Top Scores</h3>
+      <ul></ul>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <script>
+    // ─── Firebase Configuration ────────────────────────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyBp8i4NxEN4nkymuKz4VEmJed7j7MmC8ZM",
+      authDomain: "floppy-bird-d3441.firebaseapp.com",
+      projectId: "floppy-bird-d3441",
+      storageBucket: "floppy-bird-d3441.appspot.com",
+      messagingSenderId: "196211146547",
+      appId: "1:196211146547:web:18c0db4cfc1255e0870846",
+      measurementId: "G-VXNT14PN5Y"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // ─── DOM ELEMENTS ────────────────────────────────────────────────────────
+    const authContainer = document.getElementById("authContainer");
+    const gameContainer = document.getElementById("gameContainer");
+    const playerNameSpan = document.getElementById("playerName");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
+    const startBtn = document.getElementById("startBtn");
+    const leaderboardList = document.querySelector("#leaderboard ul");
+
+    // ─── AUTHENTICATION LOGIC ───────────────────────────────────────────────
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        // If logged in, show game screen
+        authContainer.classList.add("hidden");
+        gameContainer.classList.remove("hidden");
+        playerNameSpan.innerText = user.email;
+        loadLeaderboard();
+      } else {
+        // If logged out, show login screen
+        authContainer.classList.remove("hidden");
+        gameContainer.classList.add("hidden");
+      }
+    });
+
+    function login() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!email || !password) {
+        alert("Please enter both email and password.");
+        return;
+      }
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => {
+          console.log("Login successful");
+        })
+        .catch(err => {
+          if (err.code === "auth/user-not-found") {
+            alert("User not found. Please register first.");
+          } else if (err.code === "auth/wrong-password") {
+            alert("Incorrect password.");
+          } else {
+            alert("Error: " + err.message);
+          }
+        });
+    }
+
+    function register() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!email || !password) {
+        alert("Please enter both email and password.");
+        return;
+      }
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          alert("Registration successful. You can now log in.");
+        })
+        .catch(err => {
+          if (err.code === "auth/email-already-in-use") {
+            alert("This email is already registered. Try logging in.");
+          } else if (err.code === "auth/weak-password") {
+            alert("Password should be at least 6 characters.");
+          } else {
+            alert("Error: " + err.message);
+          }
+        });
+    }
+
+    function logout() {
+      auth.signOut();
+    }
+
+    // ─── GAME VARIABLES ─────────────────────────────────────────────────────
+    let birdY = 300;
+    let birdV = 0;
+    let gravity = 0.4;
+    let jumpStrength = -7;
+    let score = 0;
+    let pipes = [];
+    let gameLoop;
+    let running = false;
+    const pipeSpeed = 1.5;
+    const pipeGap = 150;
+    const pipeWidth = 50;
+    const pipeSpacing = 250;
+
+    // ─── START GAME WITH COUNTDOWN ──────────────────────────────────────────
+    function startGame() {
+      birdY = 300;
+      birdV = 0;
+      score = 0;
+      pipes = [{ x: canvas.width, y: Math.random() * 200 + 150, scored: false }];
+      running = false;
+      startBtn.disabled = true;
+      scoreDisplay.innerText = "0";
+
+      let count = 3;
+      startBtn.innerText = `Starting in ${count}...`;
+
+      const countdown = setInterval(() => {
+        count--;
+        if (count > 0) {
+          startBtn.innerText = `Starting in ${count}...`;
+        } else {
+          clearInterval(countdown);
+          startBtn.innerText = "Start Game";
+          running = true;
+          requestAnimationFrame(draw);
+        }
+      }, 1000);
+    }
+
+    // ─── INPUT HANDLERS ─────────────────────────────────────────────────────
+    canvas.addEventListener("touchstart", e => {
+      e.preventDefault();
+      if (running) birdV = jumpStrength;
+    });
+    canvas.addEventListener("click", () => {
+      if (running) birdV = jumpStrength;
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === " " || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (running) birdV = jumpStrength;
+      }
+    });
+
+    // ─── GAME LOOP ───────────────────────────────────────────────────────────
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Update bird physics
+      birdV += gravity;
+      birdY += birdV;
+
+      // Draw bird
+      ctx.fillStyle = "#FFD700"; // gold
+      ctx.strokeStyle = "#FF8C00"; // dark orange border
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(80, birdY, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Draw bird eye
+      ctx.fillStyle = "black";
+      ctx.beginPath();
+      ctx.arc(85, birdY - 5, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Move and draw pipes
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        const pipe = pipes[i];
+        pipe.x -= pipeSpeed;
+
+        // Remove off-screen pipes
+        if (pipe.x + pipeWidth < 0) {
+          pipes.splice(i, 1);
+          continue;
+        }
+
+        // Add new pipe when spacing is met
+        if (pipe.x < canvas.width - pipeSpacing && pipes.length === 1) {
+          pipes.push({
+            x: canvas.width,
+            y: Math.random() * 200 + 150,
+            scored: false
+          });
+        }
+
+        // Draw top pipe
+        const topHeight = pipe.y - pipeGap / 2;
+        ctx.fillStyle = "#2e7d32";      // green
+        ctx.strokeStyle = "#1b5e20";    // dark green border
+        ctx.lineWidth = 2;
+        ctx.fillRect(pipe.x, 0, pipeWidth, topHeight);
+        ctx.strokeRect(pipe.x, 0, pipeWidth, topHeight);
+
+        // Draw bottom pipe
+        const bottomY = pipe.y + pipeGap / 2;
+        const bottomHeight = canvas.height - bottomY;
+        ctx.fillRect(pipe.x, bottomY, pipeWidth, bottomHeight);
+        ctx.strokeRect(pipe.x, bottomY, pipeWidth, bottomHeight);
+
+        // Scoring
+        if (!pipe.scored && pipe.x + pipeWidth < 80) {
+          score++;
+          pipe.scored = true;
+          scoreDisplay.innerText = score;
+        }
+
+        // Collision detection
+        if (
+          pipe.x < 95 &&
+          pipe.x + pipeWidth > 65 &&
+          (birdY - 15 < topHeight || birdY + 15 > bottomY)
+        ) {
+          endGame();
+          return;
+        }
+      }
+
+      // Ground or ceiling collision
+      if (birdY + 15 > canvas.height || birdY - 15 < 0) {
+        endGame();
+        return;
+      }
+
+      // Ensure at least one pipe exists
+      if (pipes.length === 0) {
+        pipes.push({
+          x: canvas.width,
+          y: Math.random() * 200 + 150,
+          scored: false
+        });
+      }
+
+      // Continue loop
+      if (running) {
+        requestAnimationFrame(draw);
+      }
+    }
+
+    // ─── END GAME & SAVE SCORE ─────────────────────────────────────────────
+    function endGame() {
+      running = false;
+      startBtn.disabled = false;
+      startBtn.innerText = "Play Again";
+
+      // Overlay Game Over
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.font = "bold 30px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2 - 40);
+      ctx.font = "20px Arial";
+      ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2);
+      ctx.font = "16px Arial";
+      ctx.fillText("Tap 'Play Again' to restart", canvas.width / 2, canvas.height / 2 + 40);
+
+      saveScore(score);
+    }
+
+    function saveScore(score) {
+      const user = auth.currentUser;
+      if (!user) return;
+      db.collection("flappyScores").add({
+        email: user.email,
+        score: score,
+        timestamp: Date.now()
+      }).then(loadLeaderboard);
+    }
+
+    // ─── LOAD LEADERBOARD ───────────────────────────────────────────────────
+    function loadLeaderboard() {
+      leaderboardList.innerHTML = "";
+      db.collection("flappyScores")
+        .orderBy("score", "desc")
+        .limit(5)
+        .get()
+        .then(snapshot => {
+          snapshot.forEach((doc, idx) => {
+            const data = doc.data();
+            const li = document.createElement("li");
+            const medal =
+              idx === 0 ? "🥇" :
+              idx === 1 ? "🥈" :
+              idx === 2 ? "🥉" : "🏅";
+            li.innerText = `${medal} ${data.email}: ${data.score}`;
+            leaderboardList.appendChild(li);
+          });
+        });
+    }
+
+    // ─── PREVENT DOUBLE-TAP ZOOM ───────────────────────────────────────────
+    let lastTouchEnd = 0;
+    document.addEventListener("touchend", event => {
+      const now = new Date().getTime();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+  </script>
 </body>
 </html>
