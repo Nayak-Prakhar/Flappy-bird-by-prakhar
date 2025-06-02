@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Flappy Bird</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script type="module">
+        // Import Firebase v9+ modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js';
     <style>
         * {
             margin: 0;
@@ -184,12 +187,17 @@
     <div class="container">
         <div id="authContainer">
             <h1>🐦 Flappy Bird</h1>
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <div>
-                <button onclick="login()">Login</button>
-                <button onclick="register()">Register</button>
-            </div>
+            <form id="authForm" onsubmit="handleSubmit(event)">
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="password" id="password" placeholder="Password (min 6 chars)" required minlength="6">
+                <div>
+                    <button type="button" onclick="login()">Login</button>
+                    <button type="button" onclick="register()">Register</button>
+                </div>
+                <div style="margin-top: 15px; font-size: 12px; color: #666;">
+                    <p>Demo: Use any email format (test@example.com) and password (minimum 6 characters)</p>
+                </div>
+            </form>
         </div>
 
         <div id="gameContainer" class="hidden">
@@ -241,8 +249,9 @@
         const startBtn = document.getElementById("startBtn");
         const leaderboard = document.getElementById("leaderboard").querySelector("ul");
 
-        // Authentication
+        // Authentication with better error handling
         auth.onAuthStateChanged(user => {
+            console.log("Auth state changed:", user ? "User logged in" : "User logged out");
             if (user) {
                 authContainer.classList.add("hidden");
                 gameContainer.classList.remove("hidden");
@@ -254,16 +263,72 @@
             }
         });
 
+        // Handle form submission
+        function handleSubmit(event) {
+            event.preventDefault();
+            return false;
+        }
+
         function login() {
-            const email = document.getElementById("email").value;
+            const email = document.getElementById("email").value.trim();
             const password = document.getElementById("password").value;
-            auth.signInWithEmailAndPassword(email, password).catch(err => alert(err.message));
+            
+            if (!email || !password) {
+                alert("Please enter both email and password");
+                return;
+            }
+            
+            // Show loading state
+            const loginBtn = event.target;
+            loginBtn.disabled = true;
+            loginBtn.textContent = "Logging in...";
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    console.log("Login successful");
+                })
+                .catch(err => {
+                    console.error("Login error:", err);
+                    alert(`Login failed: ${err.message}`);
+                })
+                .finally(() => {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = "Login";
+                });
         }
 
         function register() {
-            const email = document.getElementById("email").value;
+            const email = document.getElementById("email").value.trim();
             const password = document.getElementById("password").value;
-            auth.createUserWithEmailAndPassword(email, password).catch(err => alert(err.message));
+            
+            if (!email || !password) {
+                alert("Please enter both email and password");
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert("Password must be at least 6 characters long");
+                return;
+            }
+            
+            // Show loading state
+            const registerBtn = event.target;
+            registerBtn.disabled = true;
+            registerBtn.textContent = "Registering...";
+            
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(() => {
+                    console.log("Registration successful");
+                    alert("Account created successfully!");
+                })
+                .catch(err => {
+                    console.error("Registration error:", err);
+                    alert(`Registration failed: ${err.message}`);
+                })
+                .finally(() => {
+                    registerBtn.disabled = false;
+                    registerBtn.textContent = "Register";
+                });
         }
 
         function logout() {
@@ -279,33 +344,14 @@
         let pipes = [];
         let gameLoop;
         let running = false;
+        let gameStarted = false;
         let pipeSpeed = 1.5; // Slower pipe movement
         let pipeGap = 150; // Larger gap for easier gameplay
         let pipeWidth = 50;
         let pipeSpacing = 250; // Distance between pipes
+        let lastTime = 0;
 
-        function startGame() {
-            birdY = 300;
-            birdV = 0;
-            score = 0;
-            pipes = [{ x: 500, y: Math.random() * 200 + 150 }];
-            running = false;
-            startBtn.disabled = true;
-            scoreDisplay.innerText = "0";
 
-            let count = 3;
-            startBtn.innerText = `Starting in ${count}...`;
-
-            const countdown = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    startBtn.innerText = `Starting in ${count}...`;
-                } else {
-                    clearInterval(countdown);
-                    startBtn.innerText = "Start Game";
-                    running = true;
-                    gameLoop = requestAnimationFrame(draw);
-                }
             }, 1000);
         }
 
@@ -461,6 +507,13 @@
                 .get()
                 .then(snapshot => {
                     leaderboard.innerHTML = "";
+                    if (snapshot.empty) {
+                        const li = document.createElement("li");
+                        li.innerText = "No scores yet. Be the first!";
+                        leaderboard.appendChild(li);
+                        return;
+                    }
+                    
                     snapshot.forEach((doc, index) => {
                         const data = doc.data();
                         const li = document.createElement("li");
@@ -468,8 +521,17 @@
                         li.innerText = `${medal} ${data.email}: ${data.score}`;
                         leaderboard.appendChild(li);
                     });
+                })
+                .catch(err => {
+                    console.error("Error loading leaderboard:", err);
+                    leaderboard.innerHTML = "<li>Error loading scores</li>";
                 });
         }
+
+        // Initialize Firebase connection test
+        firebase.auth().onAuthStateChanged(() => {
+            console.log("Firebase initialized successfully");
+        });
 
         // Prevent zoom on double tap
         let lastTouchEnd = 0;
