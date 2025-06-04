@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Flappy Bird (Easy Mode)</title>
+  <title>Tap to Survive by Prakhar</title>
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -96,7 +96,7 @@
       align-items: center;
       width: 100%;
     }
-    #gameContainer>h2 {
+    #gameContainer > h2 {
       margin-bottom: 15px;
       color: #2e7d32;
     }
@@ -185,7 +185,7 @@
 <body>
   <!-- Authentication Screen -->
   <div id="authContainer">
-    <h2>🐦 Flappy Bird Login</h2>
+    <h2>🐦 Tap to Survive by Prakhar Login</h2>
     <input type="email" id="email" placeholder="Email" required />
     <input type="password" id="password" placeholder="Password" required />
     <div>
@@ -208,11 +208,11 @@
     </div>
 
     <div class="instructions">
-      <strong>Instructions:</strong> Tap anywhere on screen or press SPACE to flap. Avoid the pipes!
+      <strong>Instructions:</strong> Tap anywhere on screen or press SPACE to flap. Avoid the pipes to survive!
     </div>
 
     <div id="leaderboard">
-      <h3>🏆 Top Scores</h3>
+      <h3>🏆 Top Scores by Prakhar</h3>
       <ul></ul>
     </div>
   </div>
@@ -249,13 +249,13 @@
     // ─── AUTHENTICATION LOGIC ───────────────────────────────────────────────
     auth.onAuthStateChanged(user => {
       if (user) {
-        // If logged in, show game screen
+        // Show game when logged in
         authContainer.classList.add("hidden");
         gameContainer.classList.remove("hidden");
         playerNameSpan.innerText = user.email;
         loadLeaderboard();
       } else {
-        // If logged out, show login screen
+        // Show login when logged out
         authContainer.classList.remove("hidden");
         gameContainer.classList.add("hidden");
       }
@@ -309,13 +309,13 @@
     // ─── GAME VARIABLES (Easier) ─────────────────────────────────────────────
     let birdY = 300;
     let birdV = 0;
-    let gravity = 0.3;            // Slightly lower gravity for easier control
-    let jumpStrength = -6;        // Slightly weaker flap so bird doesn’t soar too fast
+    let gravity = 0.3;            // Lower gravity for easier control
+    let jumpStrength = -6;        // Gentler flap
     let score = 0;
     let pipes = [];
     let running = false;
     const pipeSpeed = 1.0;        // Slower pipe movement
-    const pipeGap = 180;          // Wider gap for easier passage
+    const pipeGap = 180;          // Wider gap
     const pipeWidth = 50;
     const pipeSpacing = 250;      
 
@@ -369,8 +369,8 @@
       birdY += birdV;
 
       // Draw bird
-      ctx.fillStyle = "#FFD700"; // gold
-      ctx.strokeStyle = "#FF8C00"; // dark orange border
+      ctx.fillStyle = "#FFD700";
+      ctx.strokeStyle = "#FF8C00";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(80, birdY, 15, 0, Math.PI * 2);
@@ -405,8 +405,8 @@
 
         // Draw top pipe
         const topHeight = pipe.y - pipeGap / 2;
-        ctx.fillStyle = "#2e7d32";      // green
-        ctx.strokeStyle = "#1b5e20";    // dark green border
+        ctx.fillStyle = "#2e7d32";
+        ctx.strokeStyle = "#1b5e20";
         ctx.lineWidth = 2;
         ctx.fillRect(pipe.x, 0, pipeWidth, topHeight);
         ctx.strokeRect(pipe.x, 0, pipeWidth, topHeight);
