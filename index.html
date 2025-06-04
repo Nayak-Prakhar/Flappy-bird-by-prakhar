@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Flappy Bird</title>
+  <title>Flappy Bird (Easy Mode)</title>
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -269,9 +269,6 @@
         return;
       }
       auth.signInWithEmailAndPassword(email, password)
-        .then(() => {
-          console.log("Login successful");
-        })
         .catch(err => {
           if (err.code === "auth/user-not-found") {
             alert("User not found. Please register first.");
@@ -309,19 +306,18 @@
       auth.signOut();
     }
 
-    // ─── GAME VARIABLES ─────────────────────────────────────────────────────
+    // ─── GAME VARIABLES (Easier) ─────────────────────────────────────────────
     let birdY = 300;
     let birdV = 0;
-    let gravity = 0.4;
-    let jumpStrength = -7;
+    let gravity = 0.3;            // Slightly lower gravity for easier control
+    let jumpStrength = -6;        // Slightly weaker flap so bird doesn’t soar too fast
     let score = 0;
     let pipes = [];
-    let gameLoop;
     let running = false;
-    const pipeSpeed = 1.5;
-    const pipeGap = 150;
+    const pipeSpeed = 1.0;        // Slower pipe movement
+    const pipeGap = 180;          // Wider gap for easier passage
     const pipeWidth = 50;
-    const pipeSpacing = 250;
+    const pipeSpacing = 250;      
 
     // ─── START GAME WITH COUNTDOWN ──────────────────────────────────────────
     function startGame() {
